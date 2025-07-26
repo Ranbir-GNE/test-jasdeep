@@ -1,4 +1,3 @@
-const pool = require('../config/db');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
@@ -9,13 +8,12 @@ const supabase = createClient(
 const createUser = async (req, res) => {
   const { display_name, phone_number, email, role, work, password } = req.body;
 
-  // ✅ Check for required fields
   if (!display_name || !phone_number || !email || !role || !password) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
 
   try {
-    // ✅ Create user in Supabase Auth
+    // Create user in Supabase Auth
     const { data: user, error } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -37,28 +35,25 @@ const createUser = async (req, res) => {
 
     const user_id = user.user.id;
 
-    // ✅ Insert into the appropriate table
-    let insertQuery, values;
-
+    // Insert into the appropriate table using Supabase client
+    let insertResult;
     if (role === 'VENDOR') {
-      insertQuery = `INSERT INTO vendor (vendor_id, vendor_name, phone_number, email, work)
-                     VALUES ($1, $2, $3, $4, $5)`;
-      values = [user_id, display_name, phone_number, email, work];
+      insertResult = await supabase
+        .from('vendor')
+        .insert([{ vendor_id: user_id, vendor_name: display_name, phone_number, email, work }]);
     } else if (role === 'SUPPLIER') {
-      insertQuery = `INSERT INTO suppliers (supplier_id, supplier_name, phone_number, email, work)
-                     VALUES ($1, $2, $3, $4, $5)`;
-      values = [user_id, display_name, phone_number, email, work];
+      insertResult = await supabase
+        .from('suppliers')
+        .insert([{ supplier_id: user_id, supplier_name: display_name, phone_number, email, work }]);
     } else {
       return res.status(400).json({ message: 'Invalid role specified' });
     }
 
-    try {
-      await pool.query(insertQuery, values);
-    } catch (dbErr) {
-      console.error('❌ DB insertion error:', dbErr);
+    if (insertResult.error) {
+      console.error('❌ DB insertion error:', insertResult.error);
       return res.status(500).json({
         message: 'Failed to insert user details in database',
-        error: dbErr.message
+        error: insertResult.error.message
       });
     }
 
@@ -110,9 +105,9 @@ const getAllUsers = async (req, res) => {
     return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
 module.exports = {
   createUser,
   getUser,
   getAllUsers
 };
-
