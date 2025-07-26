@@ -1,23 +1,19 @@
 // db.js
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
-const { Pool } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // Use anon or service role
+);
 
-// Test connection
-pool.connect()
-  .then(client => {
-    console.log('Connected to Supabase database successfully!');
-    client.release();
-  })
-  .catch(err => {
-    console.error('Failed to connect to Supabase database:', err);
-  });
+if (!supabase) {
+  throw new Error('Failed to initialize Supabase client. Check your environment variables.');
+}
+else {
+  console.log('Supabase client initialized successfully.');
+}
 
-module.exports = pool;
+module.exports = supabase;
